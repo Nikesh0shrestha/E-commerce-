@@ -19,45 +19,46 @@
       <div class="form-row">
         <div class="col form-group">
           <label for="">First Name</label>
-          <input type="text" name="first_name" class="form-control" required>
+          
+          <input type="text" name="first_name" value="{{user.first_name}}" class="form-control" required>
         </div>
         <div class="col form-group">
           <label for="">Last Name</label>
-          <input type="text" name="last_name" class="form-control" required>
+          <input type="text" name="last_name" value="{{user.last_name}}" class="form-control" required>
         </div>
       </div>
       <div class="form-row">
         <div class="col form-group">
           <label for="">Email</label>
-          <input type="email" name="email" class="form-control" required>
+          <input type="email" name="email" value="{{user.email}}" class="form-control" required>
         </div>
         <div class="col form-group">
           <label for="">Phone Number</label>
-          <input type="text" name="phone" class="form-control" required>
+          <input type="text" name="phone" value="{{user.phone_number}}"class="form-control" required>
         </div>
       </div>
       <div class="form-row">
         <div class="col form-group">
           <label for="">Address Line 1</label>
-          <input type="text" name="address_line_1" class="form-control" required>
+          <input type="text" name="address_line_1" value="{{user.userprofile.address_line_1}}" class="form-control" required>
         </div>
         <div class="col form-group">
           <label for="">Address Line 2</label>
-          <input type="text" name="address_line_2" class="form-control">
+          <input type="text" name="address_line_2" value="{{user.userprofile.address_line_1}}"  class="form-control">
         </div>
       </div>
       <div class="form-row">
         <div class="col form-group">
           <label for="">City</label>
-          <input type="text" name="city" class="form-control" required>
+          <input type="text" name="city" value="{{user.userprofile.city}}" class="form-control" required>
         </div>
         <div class="col form-group">
           <label for="">State</label>
-          <input type="text" name="state" class="form-control" required>
+          <input type="text" name="state" value="{{user.userprofile.state}}" class="form-control" required>
         </div>
         <div class="col form-group">
           <label for="">Country</label>
-          <input type="text" name="country" class="form-control" required>
+          <input type="text" name="country" value="{{user.userprofile.country}}" class="form-control" required>
         </div>
         </div>
         <div class="form-row">
@@ -108,8 +109,8 @@
       	</td>
       	<td>
       		<div class="price-wrap">
-      			<var class="price">$ {{ cart_item.sub_total }}</var>
-      			<small class="text-muted"> $ {{ cart_item.product.price }} each </small>
+      			<var class="price">Rs {{ cart_item.sub_total }}</var>
+      			<small class="text-muted"> Rs {{ cart_item.product.price }} each </small>
       		</div> <!-- price-wrap .// -->
       	</td>
 

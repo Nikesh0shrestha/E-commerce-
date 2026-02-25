@@ -3,7 +3,7 @@ from category.models import Category
 from django.urls import reverse
 from accounts.models import Account
 from django.db.models import Avg, Count
-
+from accounts.models import Account
 # Create your models here.
 
 class Product(models.Model):
@@ -17,6 +17,8 @@ class Product(models.Model):
     category        = models.ForeignKey(Category, on_delete=models.CASCADE)
     created_date    = models.DateTimeField(auto_now_add=True)
     modified_date   = models.DateTimeField(auto_now=True)
+
+    supplier = models.ForeignKey(Account, on_delete=models.CASCADE, limit_choices_to={'role': 'supplier'}, null=True, blank=True)
 
     def get_url(self):
         return reverse('product_detail', args=[self.category.slug, self.slug])

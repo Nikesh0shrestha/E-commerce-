@@ -27,9 +27,18 @@ Already verified? <a href="{% url 'login' %}">Login</a>
           <div class="form-group">
 			 <input type="email" class="form-control" placeholder="Email Address" name="email">
           </div> <!-- form-group// -->
+
           <div class="form-group">
-			<input type="password" class="form-control" placeholder="Password" name="password">
+			      <input type="password" class="form-control" placeholder="Password" name="password">
           </div> <!-- form-group// -->
+          <div class="form-group">
+            <label>Login as:</label>
+           <select name="role" class="form-control" required>
+             <option value="customer">Customer</option>
+            <option value="supplier">Supplier</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
 
           <div class="form-group">
           	<a href="{% url 'forgotPassword' %}" class="float-right">Forgot password?</a>

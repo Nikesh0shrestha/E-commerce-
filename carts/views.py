@@ -4,6 +4,8 @@ from .models import Cart, CartItem
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
 
+from django.contrib import messages
+
 # Create your views here.
 from django.http import HttpResponse
 
@@ -16,6 +18,12 @@ def _cart_id(request):
 def add_cart(request, product_id):
     current_user = request.user
     product = Product.objects.get(id=product_id) #get the product
+    # --- ROLE-BASED RESTRICTION START ---
+    if current_user.is_authenticated:
+        if current_user.role == 'admin' or current_user.role == 'supplier':
+            messages.error(request, 'Administrators and Suppliers are not allowed to shop.')
+            return redirect('home') # Redirect them away from the cart logic
+    # --- ROLE-BASED RESTRICTION END ---
     # If the user is authenticated
     if current_user.is_authenticated:
         product_variation = []

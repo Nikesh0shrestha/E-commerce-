@@ -20,6 +20,7 @@ class MyAccountManager(BaseUserManager):
         )
 
         user.set_password(password)
+        user.is_active = True    # log in error 
         user.save(using=self._db)
         return user
 
@@ -47,6 +48,14 @@ class Account(AbstractBaseUser):
     email           = models.EmailField(max_length=100, unique=True)
     phone_number    = models.CharField(max_length=50)
 
+    # ROLES 
+    ROLE_CHOICES = (
+        ('admin', 'Admin'),
+        ('customer', 'Customer'),
+        ('supplier', 'Supplier'),
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
+    
     # required
     date_joined     = models.DateTimeField(auto_now_add=True)
     last_login      = models.DateTimeField(auto_now_add=True)

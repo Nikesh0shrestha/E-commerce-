@@ -31,8 +31,12 @@
 				<div class="card">
 					<h5 class="card-header">Payment Method</h5>
 					<div class="card-body">
-						<p class="card-text">PayPal</p>
-
+						{% comment %} <p class="card-text">eSewa</p> {% endcomment %}
+						<label for="payment_method">Select Payment Method:</label>
+       					<select class="form-control" id="payment_selector" onchange="togglePayment()">
+							<option value="esewa">eSewa</option>
+							<option value="cod">Cash on Delivery</option>
+						</select>
 					</div>
 				</div>
 				<div class="card">
@@ -72,8 +76,8 @@
 									</td>
 									<td>
 										<div class="price-wrap">
-											<var class="price">$ {{ cart_item.sub_total }}</var>
-											<small class="text-muted"> $ {{ cart_item.product.price }} each </small>
+											<var class="price">Rs {{ cart_item.sub_total }}</var>
+											<small class="text-muted"> Rs {{ cart_item.product.price }} each </small>
 										</div> <!-- price-wrap .// -->
 									</td>
 
@@ -91,25 +95,65 @@
 
 				<div class="card">
 					<div class="card-body">
+
 						<dl class="dlist-align">
 							<dt>Total price:</dt>
-							<dd class="text-right">$ {{total}}</dd>
+							<dd class="text-right">Rs{{total}}</dd>
 						</dl>
 						<dl class="dlist-align">
 							<dt>Tax:</dt>
-							<dd class="text-right"> $ {{tax}}</dd>
+							<dd class="text-right"> Rs {{tax}}</dd>
 						</dl>
 						<dl class="dlist-align">
 							<dt>Grand Total:</dt>
-							<dd class="text-right text-dark b"><strong>$ {{grand_total}}</strong></dd>
+							<dd class="text-right text-dark b"><strong>Rs {{grand_total}}</strong></dd>
 						</dl>
 						<hr>
 						<p class="text-center mb-3">
 							<img src="{% static './images/misc/payments.png' %}" height="26">
 						</p>
 
+						{% comment %} <button type="submit" class="btn btn-primary btn-block">Pay with eSewa</button> {% endcomment %}
 
-						<div id="paypal-button-container">
+						<form action="https://rc-epay.esewa.com.np/api/epay/main/v2/form" method="POST">
+    
+   						 <input type="hidden" name="amount" value="{{ total }}" required>
+    					<input type="hidden" name="tax_amount" value="{{ tax }}" required>
+    					<input type="hidden" name="total_amount" value="{{ grand_total }}" required>
+
+						<input type="hidden" name="transaction_uuid" value="{{ order.order_number }}" required>
+						<input type="hidden" name="product_code" value="EPAYTEST" required>
+						<input type="hidden" name="product_service_charge" value="0" required>
+						<input type="hidden" name="product_delivery_charge" value="0" required>
+    
+						<input type="hidden" name="success_url" value="http://127.0.0.1:8000/orders/esewa_payment_success/" required>
+						<input type="hidden" name="failure_url" value="http://127.0.0.1:8000/orders/payments/" required>
+						
+						<input type="hidden" name="signed_field_names" value="total_amount,transaction_uuid,product_code" required>
+						<input type="hidden" name="signature" value="{{ signature }}" required>
+						
+						{% comment %} <button type="submit" class="btn btn-primary btn-block btn-lg">
+							Pay Rs. {{ grand_total }} with eSewa 
+						</button>  {% endcomment %}
+						<div class="card-body">
+							<hr>
+
+							<div id="esewa_form_wrapper">
+								<form action="https://rc-epay.esewa.com.np/api/epay/main/v2/form" method="POST">
+									<button type="submit" class="btn btn-primary btn-block">Pay with eSewa</button>
+								</form>
+							</div>
+
+							<div id="cod_form_wrapper" style="display: none;">
+								<a href="{% url 'cash_on_delivery' order.order_number %}" class="btn btn-success btn-block">
+									Confirm Cash on Delivery
+								</a>
+							</div>
+						</div>
+					</form>
+
+
+						{% comment %} <div id="paypal-button-container"> {% endcomment %}
 							<!-- PayPal Button Will Load -->
 						</div>
 
@@ -127,7 +171,7 @@
 </section>
 <!-- ========================= SECTION CONTENT END// ========================= -->
 
-<script>
+{% comment %} <script>
 
 	function getCookie(name) {
     let cookieValue = null;
@@ -202,6 +246,44 @@
 
 
 	}).render('#paypal-button-container');
+</script> {% endcomment %}
+
+
+
+...
+
+<div class="text-center">
+    <form action="https://rc-epay.esewa.com.np/api/epay/main/v2/form" method="POST">
+        <input type="hidden" id="amount" name="amount" value="{{ total }}" required>
+        <input type="hidden" id="tax_amount" name="tax_amount" value="{{ tax }}" required>
+        <input type="hidden" id="total_amount" name="total_amount" value="{{ grand_total }}" required>
+        <input type="hidden" id="transaction_uuid" name="transaction_uuid" value="{{ order.order_number }}" required>
+        <input type="hidden" id="product_code" name="product_code" value="EPAYTEST" required>
+        <input type="hidden" id="product_service_charge" name="product_service_charge" value="0" required>
+        <input type="hidden" id="product_delivery_charge" name="product_delivery_charge" value="0" required>
+        <input type="hidden" id="success_url" name="success_url" value="http://127.0.0.1:8000/orders/esewa_payment_success/" required>
+        <input type="hidden" id="failure_url" name="failure_url" value="http://127.0.0.1:8000/orders/payments/" required>
+        <input type="hidden" id="signed_field_names" name="signed_field_names" value="total_amount,transaction_uuid,product_code" required>
+        <input type="hidden" id="signature" name="signature" value="{{ signature }}" required>
+        
+        
+    </form>
+</div>
+
+<script>
+    function togglePayment() {
+        const selector = document.getElementById('payment_selector');
+        const esewaWrapper = document.getElementById('esewa_form_wrapper');
+        const codWrapper = document.getElementById('cod_form_wrapper');
+
+        if (selector.value === 'cod') {
+            esewaWrapper.style.display = 'none';
+            codWrapper.style.display = 'block';
+        } else {
+            esewaWrapper.style.display = 'block';
+            codWrapper.style.display = 'none';
+        }
+    }
 </script>
 
 {% endblock %}

@@ -3,8 +3,9 @@ from .forms import RegistrationForm, UserForm, UserProfileForm
 from .models import Account, UserProfile
 from orders.models import Order, OrderProduct
 from django.contrib import messages, auth
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpResponse
+from store.models import Product
 
 # Verification email
 from django.contrib.sites.shortcuts import get_current_site
@@ -16,7 +17,14 @@ from django.core.mail import EmailMessage
 
 from carts.views import _cart_id
 from carts.models import Cart, CartItem
-import requests
+from urllib.parse import urlparse
+
+from store.forms import ProductForm
+
+from django.forms import inlineformset_factory
+from store.models import Product, Variation
+from store.forms import ProductForm, VariationForm
+
 
 
 def register(request):
@@ -28,9 +36,12 @@ def register(request):
             phone_number = form.cleaned_data['phone_number']
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
+            role = form.cleaned_data['role'] # <--- Get the role
+
             username = email.split("@")[0]
             user = Account.objects.create_user(first_name=first_name, last_name=last_name, email=email, username=username, password=password)
             user.phone_number = phone_number
+            user.role = role
             user.save()
 
             # Create a user profile
@@ -51,7 +62,7 @@ def register(request):
             to_email = email
             send_email = EmailMessage(mail_subject, message, to=[to_email])
             send_email.send()
-            # messages.success(request, 'Thank you for registering with us. We have sent you a verification email to your email address [rathan.kumar@gmail.com]. Please verify it.')
+            # messages.success(request, 'Thank you for registering with us. We have sent you a verification email to {email}. Please verify it.')
             return redirect('/accounts/login/?command=verification&email='+email)
     else:
         form = RegistrationForm()
@@ -65,10 +76,15 @@ def login(request):
     if request.method == 'POST':
         email = request.POST['email']
         password = request.POST['password']
+        selected_role = request.POST.get('role') # Get role from dropdown
 
         user = auth.authenticate(email=email, password=password)
 
         if user is not None:
+            # This ensures a Supplier can't login by selecting "Customer"
+            if user.role != selected_role:
+                messages.error(request, f'This account is not registered as a {selected_role}.')
+                return redirect('login')
             try:
                 cart = Cart.objects.get(cart_id=_cart_id(request))
                 is_cart_item_exists = CartItem.objects.filter(cart=cart).exists()
@@ -106,20 +122,30 @@ def login(request):
                             for item in cart_item:
                                 item.user = user
                                 item.save()
+            
             except:
                 pass
             auth.login(request, user)
             messages.success(request, 'You are now logged in.')
             url = request.META.get('HTTP_REFERER')
             try:
-                query = requests.utils.urlparse(url).query
+                query = urlparse(url).query
                 # next=/cart/checkout/
                 params = dict(x.split('=') for x in query.split('&'))
                 if 'next' in params:
-                    nextPage = params['next']
-                    return redirect(nextPage)
+                    # nextPage = params['next']
+                    # return redirect(nextPage)
+                    return redirect(params['next'])
             except:
-                return redirect('dashboard')
+                #  return redirect('dashboard')
+                # change in code (ROLE BASED REDIRECTION)
+                pass
+            if user.is_admin:
+                return redirect('admin:index')
+            elif user.role == 'supplier':
+                return redirect('supplier_dashboard')
+            else:
+                return redirect ('dashboard') # upto here 
         else:
             messages.error(request, 'Invalid login credentials')
             return redirect('login')
@@ -131,6 +157,23 @@ def logout(request):
     auth.logout(request)
     messages.success(request, 'You are logged out.')
     return redirect('login')
+
+
+# This is checking user based login -----
+# 1. Access Control: This function returns True only if the user is an admin
+def is_admin_check(user):
+    return user.is_admin
+
+# 2. Admin Dashboard View
+@login_required(login_url='login')
+@user_passes_test(is_admin_check, login_url='login') # Redirects to login if not an admin
+def admin_dashboard(request):
+    return render(request, 'accounts/admin_dashboard.html')
+
+# 3. Customer Dashboard View
+@login_required(login_url='login')
+def customer_dashboard(request):
+    return render(request, 'accounts/dashboard.html')
 
 
 def activate(request, uidb64, token):
@@ -150,17 +193,40 @@ def activate(request, uidb64, token):
         return redirect('register')
 
 
-@login_required(login_url = 'login')
-def dashboard(request):
-    orders = Order.objects.order_by('-created_at').filter(user_id=request.user.id, is_ordered=True)
-    orders_count = orders.count()
+# @login_required(login_url = 'login')
+# def dashboard(request):
+#     orders = Order.objects.order_by('-created_at').filter(user_id=request.user.id, is_ordered=True)
+#     orders_count = orders.count()
 
-    userprofile = UserProfile.objects.get(user_id=request.user.id)
-    context = {
-        'orders_count': orders_count,
-        'userprofile': userprofile,
-    }
-    return render(request, 'accounts/dashboard.html', context)
+#     userprofile = UserProfile.objects.get(user_id=request.user.id)
+#     context = {
+#         'orders_count': orders_count,
+#         'userprofile': userprofile,
+#     }
+#     return render(request, 'accounts/dashboard.html', context)
+
+# change here 
+@login_required(login_url='login')
+def dashboard(request):
+    # 1. The Role Check: This separates the two dashboards
+    if request.user.role == 'supplier':
+        return redirect('supplier_dashboard')
+    
+    # 2. Customer Logic: This only runs if the user is NOT a supplier
+    try:
+        orders = Order.objects.order_by('-created_at').filter(user_id=request.user.id, is_ordered=True)
+        orders_count = orders.count()
+        userprofile = UserProfile.objects.get(user_id=request.user.id)
+        
+        context = {
+            'orders_count': orders_count,
+            'userprofile': userprofile,
+        }
+        # This renders the standard customer dashboard
+        return render(request, 'accounts/dashboard.html', context)
+        
+    except UserProfile.DoesNotExist:
+        return redirect('edit_profile')
 
 
 def forgotPassword(request):
@@ -296,3 +362,148 @@ def order_detail(request, order_id):
         'subtotal': subtotal,
     }
     return render(request, 'accounts/order_detail.html', context)
+
+
+@login_required(login_url='login')
+def supplier_dashboard(request):
+    # Security check to ensure customers can't type this URL
+    if request.user.role != 'supplier':
+        return redirect('dashboard')
+    return render(request, 'accounts/supplier_dashboard.html')
+
+@login_required(login_url='login')
+def supplier_products(request):
+    if request.user.role != 'supplier':
+        return redirect('dashboard')
+        
+    products = Product.objects.filter(supplier=request.user).order_by('-created_date')
+    
+    context = {
+        'products': products,
+    }
+    return render(request, 'accounts/supplier_products.html', context)
+
+
+
+# CRUD by supplier 
+# @login_required(login_url='login')
+# def add_product(request):
+#     if request.user.role != 'supplier':
+#         return redirect('dashboard')
+
+#     if request.method == 'POST':
+#         form = ProductForm(request.POST, request.FILES) # request.FILES is required for images!
+#         if form.is_valid():
+#             product = form.save(commit=False)
+#             product.supplier = request.user # Automatically set the owner
+#             product.save()
+#             messages.success(request, 'Product added successfully!')
+#             return redirect('supplier_products')
+#     else:
+#         form = ProductForm()
+    
+#     context = {'form': form}
+#     return render(request, 'accounts/add_product.html', context)
+
+
+
+@login_required(login_url='login')
+def add_product(request):
+    if request.user.role != 'supplier':
+        return redirect('dashboard')
+    
+    # Add 'form=VariationForm' here
+    VariationFormSet = inlineformset_factory(
+        Product, 
+        Variation, 
+        form=VariationForm, # This tells Django which fields to use
+        extra=2, 
+        can_delete=False
+    )
+
+    # This creates a set of variation forms linked to one product
+    VariationFormSet = inlineformset_factory(
+        Product, Variation, form=VariationForm, extra=2, can_delete=False
+    )
+
+    if request.method == 'POST':
+        form = ProductForm(request.POST, request.FILES)
+        formset = VariationFormSet(request.POST, instance=None) # instance=None because it's a new product
+        
+        if form.is_valid() and formset.is_valid():
+            product = form.save(commit=False)
+            product.supplier = request.user
+            product.save() # We MUST save the product first to get a Product ID
+            
+            # Now save the variations linked to the new product
+            variations = formset.save(commit=False)
+            for var in variations:
+                var.product = product
+                var.save()
+                
+            messages.success(request, 'Product and Variations added successfully!')
+            return redirect('supplier_products')
+    else:
+        form = ProductForm()
+        formset = VariationFormSet()
+
+    context = {
+        'form': form,
+        'formset': formset,
+    }
+    return render(request, 'accounts/add_product.html', context)
+
+
+
+@login_required(login_url='login')
+def edit_product(request, product_id):
+    product = get_object_or_404(Product, id=product_id, supplier=request.user)
+    
+    if request.method == 'POST':
+        form = ProductForm(request.POST, request.FILES, instance=product)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Product updated successfully!')
+            return redirect('supplier_products')
+    else:
+        form = ProductForm(instance=product)
+    
+    context = {'form': form, 'product': product}
+    return render(request, 'accounts/edit_product.html', context)
+
+@login_required(login_url='login')
+def delete_product(request, product_id):
+    product = get_object_or_404(Product, id=product_id, supplier=request.user)
+    product.delete()
+    messages.success(request, 'Product deleted successfully.')
+    return redirect('supplier_products')
+
+# def dashboard(request):
+#     if request.user.is_authenticated:
+#         # Check for supplier status
+#         if hasattr(request.user, 'is_supplier') and request.user.is_supplier:
+#             return redirect('supplier_dashboard') 
+#         else:
+#             # This will now find the path we named 'customer_dashboard' in urls.py
+#             return redirect('customer_dashboard')
+#     else:
+#         return redirect('login')
+
+def dashboard_switch(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    # Priority 1: Check if Supplier
+    # Adjust 'is_supplier' to match your exact field name in models.py
+    if hasattr(request.user, 'is_supplier') and request.user.is_supplier:
+        return redirect('supplier_dashboard')
+    
+    # Priority 2: Default to Customer
+    return redirect('customer_dashboard')
+
+# These functions render the actual HTML pages
+def customer_dashboard(request):
+    return render(request, 'accounts/customer_dashboard.html')
+
+def supplier_dashboard(request):
+    return render(request, 'accounts/supplier_dashboard.html')

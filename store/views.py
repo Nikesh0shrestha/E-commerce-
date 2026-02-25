@@ -10,6 +10,7 @@ from django.http import HttpResponse
 from .forms import ReviewForm
 from django.contrib import messages
 from orders.models import OrderProduct
+from .recommendations import get_similar_products
 
 
 def store(request, category_slug=None):
@@ -58,12 +59,22 @@ def product_detail(request, category_slug, product_slug):
     # Get the product gallery
     product_gallery = ProductGallery.objects.filter(product_id=single_product.id)
 
+    # Content-based similar products (same category preferred for fallback)
+    similar_products = get_similar_products(single_product, max_results=6)
+    if not similar_products:
+        # Fallback: same category, exclude current
+        similar_products = list(
+            Product.objects.filter(category=single_product.category, is_available=True)
+            .exclude(pk=single_product.pk)[:6]
+        )
+
     context = {
         'single_product': single_product,
         'in_cart'       : in_cart,
         'orderproduct': orderproduct,
         'reviews': reviews,
         'product_gallery': product_gallery,
+        'similar_products': similar_products,
     }
     return render(request, 'store/product_detail.html', context)
 

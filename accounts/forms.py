@@ -3,6 +3,11 @@ from .models import Account, UserProfile
 
 
 class RegistrationForm(forms.ModelForm):
+    # Added the role choice field
+    role = forms.ChoiceField(
+        choices=[('customer', 'Customer'), ('supplier', 'Supplier')],
+        required=True,
+    )
     password = forms.CharField(widget=forms.PasswordInput(attrs={
         'placeholder': 'Enter Password',
         'class': 'form-control',

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container padding-y" style="max-width: 600px;">
+    <h2>Edit Product: {{ product.product_name }}</h2>
+    <form action="{% url 'edit_product' product.id %}" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary btn-block">Save Changes</button>
+        <a href="{% url 'supplier_products' %}" class="btn btn-light btn-block">Cancel</a>
+    </form>
+</div>
+{% endblock %}
