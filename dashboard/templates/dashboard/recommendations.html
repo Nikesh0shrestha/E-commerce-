@@ -1,0 +1,7 @@
+<h1>Recommended Products for {{ product.product_name }}</h1>
+
+<ul>
+    {% for item in recommended %}
+        <li>{{ item.product_name }} - Rs {{ item.price }}</li>
+    {% endfor %}
+</ul>

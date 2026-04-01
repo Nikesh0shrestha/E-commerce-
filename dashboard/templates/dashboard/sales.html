@@ -1,0 +1,22 @@
+<h1>📈 Sales Chart</h1>
+
+<canvas id="salesChart"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const labels = [{% for s in sales %}'{{ s.day }}',{% endfor %}];
+const data = [{% for s in sales %}{{ s.total }},{% endfor %}];
+
+new Chart(document.getElementById('salesChart'), {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Revenue',
+            data: data,
+            borderWidth: 2
+        }]
+    }
+});
+</script>

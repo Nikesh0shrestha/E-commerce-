@@ -1,0 +1,18 @@
+<h1>📊 Analytics Dashboard</h1>
+
+<h2>Total Orders: {{ total_orders }}</h2>
+<h2>Total Revenue: Rs {{ total_revenue }}</h2>
+
+<h3>🔥 Top Products</h3>
+<ul>
+    {% for product in top_products %}
+        <li>{{ product.product__product_name }} ({{ product.total_qty }})</li>
+    {% endfor %}
+</ul>
+
+<h3>⚠️ Low Stock Products</h3>
+<ul>
+    {% for product in low_stock %}
+        <li>{{ product.product_name }} (Stock: {{ product.stock }})</li>
+    {% endfor %}
+</ul>

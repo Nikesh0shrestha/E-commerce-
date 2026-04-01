@@ -32,6 +32,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,7 +45,15 @@ INSTALLED_APPS = [
     'carts',
     'orders',
     'admin_honeypot',
+    'dashboard',
 ]
+
+JAZZMIN_SETTINGS = {
+    "topmenu_links": [
+        {"name": "Analytics", "url": "/dashboard/"},
+        {"name": "Sales Chart", "url": "/dashboard/sales/"},
+    ],
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
