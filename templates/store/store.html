@@ -129,7 +129,8 @@
 		</div>
 </header><!-- sect-heading -->
 
-<div class="row">
+
+<div class="row">	
 	{% if products %}
 	{% for product in products %}
 	<div class="col-md-4">
@@ -149,7 +150,8 @@
 				<a href="{{ product.get_url }}" class="btn btn-block btn-primary">View Details </a>
 			</figcaption>
 		</figure>
-	</div> <!-- col.// -->
+	</div>
+	 <!-- col.// -->
 	{% endfor %}
 	{% else %}
 	<div>

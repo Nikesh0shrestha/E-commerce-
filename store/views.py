@@ -12,6 +12,8 @@ from django.contrib import messages
 from orders.models import OrderProduct
 from .recommendations import get_similar_products
 
+from django.db.models import Avg, Count, F, FloatField, ExpressionWrapper, Q
+
 
 def store(request, category_slug=None):
     categories = None
@@ -31,9 +33,13 @@ def store(request, category_slug=None):
         paged_products = paginator.get_page(page)
         product_count = products.count()
 
+    recommended = get_top_rated_products()[:4]
+
+
     context = {
         'products': paged_products,
         'product_count': product_count,
+        'recommended': recommended,
     }
     return render(request, 'store/store.html', context)
 
@@ -67,6 +73,7 @@ def product_detail(request, category_slug, product_slug):
             Product.objects.filter(category=single_product.category, is_available=True)
             .exclude(pk=single_product.pk)[:6]
         )
+    top_rated = get_top_rated_products().exclude(id=single_product.id)[:4]
 
     context = {
         'single_product': single_product,
@@ -75,6 +82,7 @@ def product_detail(request, category_slug, product_slug):
         'reviews': reviews,
         'product_gallery': product_gallery,
         'similar_products': similar_products,
+        'top_rated': top_rated,
     }
     return render(request, 'store/product_detail.html', context)
 
@@ -114,3 +122,18 @@ def submit_review(request, product_id):
                 data.save()
                 messages.success(request, 'Thank you! Your review has been submitted.')
                 return redirect(url)
+
+
+def get_top_rated_products():
+    C = ReviewRating.objects.filter(status=True).aggregate(avg=Avg('rating'))['avg'] or 0
+    m = 5  # minimum reviews threshold
+
+    return Product.objects.filter(is_available=True).annotate(
+        R=Avg('reviewrating__rating', filter=Q(reviewrating__status=True)),
+        v=Count('reviewrating', filter=Q(reviewrating__status=True))
+    ).annotate(
+        score=ExpressionWrapper(
+            (F('v')/(F('v')+m))*F('R') + (m/(F('v')+m))*C,
+            output_field=FloatField()
+        )
+    ).order_by('-score')
