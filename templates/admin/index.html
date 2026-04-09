@@ -1,0 +1,136 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+
+<h1>📊 Analytics Dashboard</h1>
+
+<!-- 📅 FILTER + EXPORT -->
+<div style="margin-bottom:20px;">
+    <input type="date" id="startDate">
+    <input type="date" id="endDate">
+    <button onclick="loadData()">Filter</button>
+
+    <a href="/securelogin/export-excel/" class="button">📊 Excel</a>
+    <a href="/securelogin/export-pdf/" class="button">📄 PDF</a>
+</div>
+
+<!-- 📊 KPI CARDS -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:20px;">
+    <div class="card">💰 Revenue <h2 id="revenue"></h2></div>
+    <div class="card">🛒 Orders <h2 id="orders"></h2></div>
+    <div class="card">👤 Users <h2 id="users"></h2></div>
+</div>
+
+<!-- 📈 CHARTS -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+    <div class="card">
+        <h3>Products per Category</h3>
+        <canvas id="categoryChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h3>Orders Trend</h3>
+        <canvas id="orderChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h3>Revenue Trend</h3>
+        <canvas id="revenueChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h3>⭐ Top Rated Products</h3>
+        <canvas id="ratingChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h3>🤖 Recommended Products</h3>
+        <canvas id="recommendChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h3>📦 Low Stock Alerts</h3>
+        <ul id="lowStockList"></ul>
+    </div>
+
+</div>
+
+<hr style="margin:40px 0;">
+{{ block.super }}
+
+<style>
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let categoryChart, orderChart, revenueChart, ratingChart, recommendChart;
+
+function loadData() {
+
+    const start = document.getElementById('startDate').value;
+    const end = document.getElementById('endDate').value;
+
+    fetch(`/securelogin/dashboard-data/?start=${start}&end=${end}`)
+    .then(res => res.json())
+    .then(data => {
+
+        // KPI
+        document.getElementById('revenue').innerText = data.kpi.revenue;
+        document.getElementById('orders').innerText = data.kpi.orders;
+        document.getElementById('users').innerText = data.kpi.users;
+
+        // Destroy old charts
+        [categoryChart, orderChart, revenueChart, ratingChart, recommendChart].forEach(c => {
+            if (c) c.destroy();
+        });
+
+        // Charts
+        categoryChart = new Chart(document.getElementById('categoryChart'), {
+            type: 'bar',
+            data: { labels: data.category.labels, datasets: [{ data: data.category.counts }] }
+        });
+
+        orderChart = new Chart(document.getElementById('orderChart'), {
+            type: 'line',
+            data: { labels: data.orders_chart.labels, datasets: [{ data: data.orders_chart.counts }] }
+        });
+
+        revenueChart = new Chart(document.getElementById('revenueChart'), {
+            type: 'line',
+            data: { labels: data.revenue_chart.labels, datasets: [{ data: data.revenue_chart.amounts }] }
+        });
+
+        ratingChart = new Chart(document.getElementById('ratingChart'), {
+            type: 'bar',
+            data: { labels: data.top_products.labels, datasets: [{ data: data.top_products.ratings }] }
+        });
+
+        recommendChart = new Chart(document.getElementById('recommendChart'), {
+            type: 'bar',
+            data: { labels: data.recommended.labels, datasets: [{ data: data.recommended.counts }] }
+        });
+
+        // Low stock
+        const list = document.getElementById('lowStockList');
+        list.innerHTML = "";
+        data.low_stock.forEach(item => {
+            list.innerHTML += `<li>${item.name} - ${item.stock} left</li>`;
+        });
+
+    });
+}
+
+// Auto load
+loadData();
+</script>
+
+{% endblock %}

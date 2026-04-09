@@ -49,10 +49,10 @@ INSTALLED_APPS = [
 ]
 
 JAZZMIN_SETTINGS = {
-    "topmenu_links": [
-        {"name": "Analytics", "url": "/dashboard/"},
-        {"name": "Sales Chart", "url": "/dashboard/sales/"},
-    ],
+    # "topmenu_links": [
+    #     {"name": "Analytics", "url": "/dashboard/"},
+    #     {"name": "Sales Chart", "url": "/dashboard/sales/"},
+    # ],
 }
 
 MIDDLEWARE = [
