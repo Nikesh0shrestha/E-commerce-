@@ -2,19 +2,20 @@ from django.db import models
 from category.models import Category
 from django.urls import reverse
 from accounts.models import Account
+# from rest_framework import serializers
 from django.db.models import Avg, Count
-from accounts.models import Account
+
 # Create your models here.
 
 class Product(models.Model):
     product_name    = models.CharField(max_length=200, unique=True)
     slug            = models.SlugField(max_length=200, unique=True)
     description     = models.TextField(max_length=500, blank=True)
-    price           = models.IntegerField()
+    price           = models.DecimalField(max_digits=10, decimal_places=2)
     images          = models.ImageField(upload_to='photos/products')
     stock           = models.IntegerField()
     is_available    = models.BooleanField(default=True)
-    category        = models.ForeignKey(Category, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     created_date    = models.DateTimeField(auto_now_add=True)
     modified_date   = models.DateTimeField(auto_now=True)
 
@@ -26,19 +27,44 @@ class Product(models.Model):
     def __str__(self):
         return self.product_name
 
+    # def averageReview(self):
+    #     reviews = ReviewRating.objects.filter(product=self, status=True).aggregate(average=Avg('rating'))
+    #     avg = 0
+    #     if reviews['average'] is not None:
+    #         avg = float(reviews['average'])
+    #     return avg
+
+    # # average_rating = serializers.SerializerMethodField()
+
+    #  def get_average_rating(self, obj):
+    # #     return obj.reviews.aggregate(avg=Avg('rating'))['avg']
+
+    # def countReview(self):
+    #     # reviews = ReviewRating.objects.filter(product=self, status=True).aggregate(count=Count('id'))
+    #     reviews = self.reviews.filter(status=True)
+    #     count = 0
+    #     if reviews['count'] is not None:
+    #         count = int(reviews['count'])
+    #     return count
+
     def averageReview(self):
-        reviews = ReviewRating.objects.filter(product=self, status=True).aggregate(average=Avg('rating'))
-        avg = 0
-        if reviews['average'] is not None:
-            avg = float(reviews['average'])
-        return avg
+        reviews = self.reviews.filter(status=True).aggregate(avg=Avg('rating'))
+        avg = reviews['avg']
+
+        if avg is not None:
+            return float(avg)
+
+        return 0
+
 
     def countReview(self):
-        reviews = ReviewRating.objects.filter(product=self, status=True).aggregate(count=Count('id'))
-        count = 0
-        if reviews['count'] is not None:
-            count = int(reviews['count'])
-        return count
+        reviews = self.reviews.filter(status=True).aggregate(count=Count('id'))
+        count = reviews['count']
+
+        if count is not None:
+            return int(count)
+
+        return 0
 
 class VariationManager(models.Manager):
     def colors(self):
@@ -53,7 +79,7 @@ variation_category_choice = (
 )
 
 class Variation(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variations')
     variation_category = models.CharField(max_length=100, choices=variation_category_choice)
     variation_value     = models.CharField(max_length=100)
     is_active           = models.BooleanField(default=True)
@@ -66,7 +92,7 @@ class Variation(models.Model):
 
 
 class ReviewRating(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
     user = models.ForeignKey(Account, on_delete=models.CASCADE)
     subject = models.CharField(max_length=100, blank=True)
     review = models.TextField(max_length=500, blank=True)
@@ -81,7 +107,7 @@ class ReviewRating(models.Model):
 
 
 class ProductGallery(models.Model):
-    product = models.ForeignKey(Product, default=None, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='gallery')
     image = models.ImageField(upload_to='store/products', max_length=255)
 
     def __str__(self):

@@ -46,7 +46,24 @@ INSTALLED_APPS = [
     'orders',
     'admin_honeypot',
     'dashboard',
+    'rest_framework',
+    'api',
+    'drf_yasg',
+    'rest_framework.authtoken',
 ]
+
+REST_FRAMEWORK = {
+
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 5,
+    'DEFAULT_FILTER_BACKENDS': ["rest_framework.filters.SearchFilter",],
+}
 
 JAZZMIN_SETTINGS = {
     # "topmenu_links": [
@@ -187,9 +204,25 @@ MESSAGE_TAGS = {
 
 
 # SMTP configuration
-EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = config('EMAIL_HOST', default='')
-EMAIL_PORT = config('EMAIL_PORT', cast=int, default=587)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool, default=True)
+# EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+# EMAIL_HOST = config('EMAIL_HOST', default='')
+# EMAIL_PORT = config('EMAIL_PORT', cast=int, default=587)
+# EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+# EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool, default=True)
+
+
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+EMAIL_HOST_USER = 'ae4648cb4dea3f'
+EMAIL_HOST_PASSWORD = '9319c9c90f64b3'
+EMAIL_PORT = '2525'
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    }
+}

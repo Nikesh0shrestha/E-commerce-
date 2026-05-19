@@ -144,6 +144,8 @@ def login(request):
                 return redirect('admin:index')
             elif user.role == 'supplier':
                 return redirect('supplier_dashboard')
+            elif user.role == 'delivery':
+                return redirect('delivery_dashboard')
             else:
                 return redirect ('dashboard') # upto here 
         else:
@@ -507,3 +509,7 @@ def customer_dashboard(request):
 
 def supplier_dashboard(request):
     return render(request, 'accounts/supplier_dashboard.html')
+
+
+def delivery_dashboard(request):
+    return render(request, 'acccounts/delivery_dashboard.html')

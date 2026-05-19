@@ -9,7 +9,8 @@ from store.models import Product
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from accounts.models import UserProfile
-
+from django.conf import settings
+from django.core.mail import send_mail
 
 
 import base64
@@ -87,13 +88,23 @@ def payments(request):
                 'order': order,
             })
             to_email = request.user.email
-            send_email = EmailMessage(mail_subject, message, to=[to_email])
-            send_email.send()
+            # send_email = EmailMessage(mail_subject, message, to=[to_email])
+            # send_email.send()
+            send_mail(
+                subject=mail_subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[to_email],
+                fail_silently=False,
+            )
+
+             
+
 
             # 9. Redirect to the thank you page
             return redirect(f"/orders/order_complete/?order_number={order_number}&payment_id={transID}")
 
-    # If payment fails or data is missing
+    # If payment fails or data is missing       
     return redirect('checkout')
 
 # def payments(request):
@@ -373,35 +384,76 @@ def place_order(request, total=0, quantity=0):
 #     return redirect('checkout')
     
 def cash_on_delivery(request, order_number):
-        try:
-            # 1. Retrieve the order
-            order = Order.objects.get(user=request.user, is_ordered=False, order_number=order_number)
-            
-            # 2. Create Payment record for COD
-            payment = Payment(
-                user = request.user,
-                payment_id = order_number, 
-                payment_method = 'Cash on Delivery',
-                amount_paid = order.order_total,
-                status = 'Pending',
-            )
-            payment.save()
+    try:
+        # 1. Retrieve the order
+        order = Order.objects.get(
+            user=request.user,
+            is_ordered=False,
+            order_number=order_number
+        )
 
-            # 3. Finalize Order
-            order.payment = payment
-            order.is_ordered = True
-            order.save()
+        # 2. Create Payment record for COD
+        payment = Payment(
+            user=request.user,
+            payment_id=order_number,
+            payment_method='Cash on Delivery',
+            amount_paid=order.order_total,
+            status='Pending',
+        )
+        payment.save()
 
-            # 4. Redirect to order completion page
-            return redirect(f'/orders/order_complete/?order_number={order_number}&payment_id={order_number}')
+        # 3. Finalize Order
+        order.payment = payment
+        order.is_ordered = True
+        order.save()
 
-        except Order.DoesNotExist:
-            # If the order is not found, send them back to the store
-            return redirect('store')
-        except Exception as e:
-            # Log any other error and redirect
-            print(f"Error: {e}")
-            return redirect('home')
+        # =========================================
+        # 4. MOVE CART ITEMS TO ORDER PRODUCT TABLE
+        # =========================================
+
+        cart_items = CartItem.objects.filter(user=request.user)
+
+        for item in cart_items:
+            orderproduct = OrderProduct()
+            orderproduct.order_id = order.id
+            orderproduct.payment = payment
+            orderproduct.user_id = request.user.id
+            orderproduct.product_id = item.product_id
+            orderproduct.quantity = item.quantity
+            orderproduct.product_price = item.product.price
+            orderproduct.ordered = True
+            orderproduct.save()
+
+            # Add variations
+            product_variation = item.variations.all()
+            orderproduct.variations.set(product_variation)
+            orderproduct.save()
+
+            # Reduce stock
+            product = Product.objects.get(id=item.product_id)
+            product.stock -= item.quantity
+            product.save()
+
+        # =========================================
+        # 5. CLEAR CART
+        # =========================================
+
+        cart_items.delete()
+
+        # =========================================
+        # 6. REDIRECT
+        # =========================================
+
+        return redirect(
+            f'/orders/order_complete/?order_number={order_number}&payment_id={order_number}'
+        )
+
+    except Order.DoesNotExist:
+        return redirect('store')
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return redirect('home')
 
 
 

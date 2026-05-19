@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Product, ReviewRating, ProductGallery
+from .models import  ReviewRating, ProductGallery
 from category.models import Category
 from carts.models import CartItem
 from django.db.models import Q
@@ -10,7 +10,11 @@ from django.http import HttpResponse
 from .forms import ReviewForm
 from django.contrib import messages
 from orders.models import OrderProduct
-from .recommendations import get_similar_products
+
+
+from .models import Product, Variation
+# Change line 13 to this:
+from .recommendations import get_knn_recommendations
 
 from django.db.models import Avg, Count, F, FloatField, ExpressionWrapper, Q
 
@@ -44,49 +48,152 @@ def store(request, category_slug=None):
     return render(request, 'store/store.html', context)
 
 
+# def product_detail(request, category_slug, product_slug):
+#     try:
+#         single_product = Product.objects.get(category__slug=category_slug, slug=product_slug)
+#         in_cart = CartItem.objects.filter(cart__cart_id=_cart_id(request), product=single_product).exists()
+#     except Exception as e:
+#         raise e
+
+#     if request.user.is_authenticated:
+#         try:
+#             orderproduct = OrderProduct.objects.filter(user=request.user, product_id=single_product.id).exists()
+#         except OrderProduct.DoesNotExist:
+#             orderproduct = None
+#     else:
+#         orderproduct = None
+
+#     # Get the reviews
+#     reviews = ReviewRating.objects.filter(product_id=single_product.id, status=True)
+
+#     # Get the product gallery
+#     product_gallery = ProductGallery.objects.filter(product_id=single_product.id)
+
+#     # Content-based similar products (same category preferred for fallback)
+#     similar_products = get_similar_products(single_product, max_results=6)
+#     if not similar_products:
+#         # Fallback: same category, exclude current
+#         similar_products = list(
+#             Product.objects.filter(category=single_product.category, is_available=True)
+#             .exclude(pk=single_product.pk)[:6]
+#         )
+#     top_rated = get_top_rated_products().exclude(id=single_product.id)[:4]
+
+#     context = {
+#         'single_product': single_product,
+#         'in_cart'       : in_cart,
+#         'orderproduct': orderproduct,
+#         'reviews': reviews,
+#         'product_gallery': product_gallery,
+#         'similar_products': similar_products,
+#         'top_rated': top_rated,
+#     }
+#     return render(request, 'store/product_detail.html', context)
+
+
 def product_detail(request, category_slug, product_slug):
     try:
-        single_product = Product.objects.get(category__slug=category_slug, slug=product_slug)
-        in_cart = CartItem.objects.filter(cart__cart_id=_cart_id(request), product=single_product).exists()
+        # Get the specific product
+        single_product = Product.objects.get(
+            category__slug=category_slug,
+            slug=product_slug
+        )
+
+        # Check if product is already in cart
+        in_cart = CartItem.objects.filter(
+            cart__cart_id=_cart_id(request),
+            product=single_product
+        ).exists()
+
     except Exception as e:
         raise e
 
+    # =========================
+    # PRODUCT VARIATIONS
+    # =========================
+
+    color_variation = Variation.objects.filter(
+        product=single_product,
+        variation_category__iexact='color',
+        is_active=True
+    )
+
+    size_variation = Variation.objects.filter(
+        product=single_product,
+        variation_category__iexact='size',
+        is_active=True
+    )
+
+    # =========================
+    # ORDER CHECK
+    # =========================
+
+    orderproduct = None
+
     if request.user.is_authenticated:
-        try:
-            orderproduct = OrderProduct.objects.filter(user=request.user, product_id=single_product.id).exists()
-        except OrderProduct.DoesNotExist:
-            orderproduct = None
+        orderproduct = OrderProduct.objects.filter(
+            user=request.user,
+            product_id=single_product.id
+        ).exists()
+
     else:
-        orderproduct = None
+        orderproduct = False
 
-    # Get the reviews
-    reviews = ReviewRating.objects.filter(product_id=single_product.id, status=True)
+    # =========================
+    # REVIEWS
+    # =========================
 
-    # Get the product gallery
-    product_gallery = ProductGallery.objects.filter(product_id=single_product.id)
+    reviews = ReviewRating.objects.filter(
+        product_id=single_product.id,
+        status=True
+    )
 
-    # Content-based similar products (same category preferred for fallback)
-    similar_products = get_similar_products(single_product, max_results=6)
+    # =========================
+    # GALLERY
+    # =========================
+
+    product_gallery = ProductGallery.objects.filter(
+        product_id=single_product.id
+    )
+
+    # =========================
+    # RECOMMENDATIONS
+    # =========================
+
+    similar_products = get_knn_recommendations(
+        single_product.id,
+        k=6
+    )
+
     if not similar_products:
-        # Fallback: same category, exclude current
-        similar_products = list(
-            Product.objects.filter(category=single_product.category, is_available=True)
-            .exclude(pk=single_product.pk)[:6]
-        )
-    top_rated = get_top_rated_products().exclude(id=single_product.id)[:4]
+        similar_products = Product.objects.filter(
+            category=single_product.category,
+            is_available=True
+        ).exclude(id=single_product.id)[:6]
+
+    top_rated = get_top_rated_products().exclude(
+        id=single_product.id
+    )[:4]
+
+    # =========================
+    # CONTEXT
+    # =========================
 
     context = {
         'single_product': single_product,
-        'in_cart'       : in_cart,
+        'in_cart': in_cart,
         'orderproduct': orderproduct,
         'reviews': reviews,
         'product_gallery': product_gallery,
         'similar_products': similar_products,
         'top_rated': top_rated,
+
+        # IMPORTANT
+        'color_variation': color_variation,
+        'size_variation': size_variation,
     }
+
     return render(request, 'store/product_detail.html', context)
-
-
 def search(request):
     if 'keyword' in request.GET:
         keyword = request.GET['keyword']
@@ -129,8 +236,8 @@ def get_top_rated_products():
     m = 5  # minimum reviews threshold
 
     return Product.objects.filter(is_available=True).annotate(
-        R=Avg('reviewrating__rating', filter=Q(reviewrating__status=True)),
-        v=Count('reviewrating', filter=Q(reviewrating__status=True))
+        R=Avg('reviews__rating', filter=Q(reviews__status=True)),
+        v=Count('reviews', filter=Q(reviews__status=True))
     ).annotate(
         score=ExpressionWrapper(
             (F('v')/(F('v')+m))*F('R') + (m/(F('v')+m))*C,
